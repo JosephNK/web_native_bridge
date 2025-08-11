@@ -1,11 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
+import { WebViewMessage } from "../models/webview.message";
 
 // 타입 정의
-interface WebViewMessage {
-  type: string;
-  data: any;
-  timestamp?: number;
-}
 
 interface WindowWithWebView extends Window {
   IN_APP_WEBVIEW_BRIDGE_CHANNEL?: {
