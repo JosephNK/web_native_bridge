@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 interface WebViewMessage {
   type: string;
   data: any;
-  timestamp: number;
+  timestamp?: number;
 }
 
 interface WindowWithWebView extends Window {
@@ -34,6 +34,13 @@ declare const window: WindowWithWebView;
 
 type MessageCallback = (message: WebViewMessage) => void;
 
+declare global {
+  interface Window {
+    callbackPostMessage?: (data: string) => void;
+    callbackAppState?: (state: string) => void;
+  }
+}
+
 export const useWebView = () => {
   const [isWebView, setIsWebView] = useState<boolean>(false);
   const [statusMessages, setStatusMessages] = useState<string[]>([]);
@@ -43,6 +50,10 @@ export const useWebView = () => {
       ...prev.slice(-4), // 최근 5개만 유지
       `${new Date().toLocaleTimeString()}: ${message}`,
     ]);
+  }, []);
+
+  const clearStatusMessages = useCallback(() => {
+    setStatusMessages([]);
   }, []);
 
   useEffect(() => {
@@ -121,29 +132,72 @@ export const useWebView = () => {
     }
   }, []);
 
-  // 네이티브에서 메시지 수신
-  const setupMessageListener = useCallback((callback: MessageCallback) => {
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message: WebViewMessage =
-          typeof event.data === "string" ? JSON.parse(event.data) : event.data;
-        callback(message);
-      } catch (error) {
-        console.error("Failed to parse message:", error);
-      }
-    };
+  // 메시지를 수신하는 콜백 설정
+  const setupMessageListener = useCallback(
+    (callback: MessageCallback) => {
+      const cleanupFunctions: (() => void)[] = [];
 
-    // React Native WebView 메시지 리스너
-    if (typeof window !== "undefined") {
-      window.addEventListener("message", handleMessage);
-    }
-
-    return () => {
       if (typeof window !== "undefined") {
-        window.removeEventListener("message", handleMessage);
+        // PostMessage 콜백 함수 설정
+        window.callbackPostMessage = (data: string) => {
+          try {
+            const message: WebViewMessage = JSON.parse(data);
+            callback(message);
+          } catch (error) {
+            console.error("Failed to parse Flutter message:", error);
+          }
+        };
+
+        cleanupFunctions.push(() => {
+          delete window.callbackPostMessage;
+        });
+
+        // AppState 콜백 함수 설정
+        window.callbackAppState = (state: string) => {
+          try {
+            const message: WebViewMessage = {
+              type: "APP_STATE_CHANGE",
+              data: { state },
+            };
+            callback(message);
+          } catch (error) {
+            console.error("Failed to handle app state change:", error);
+          }
+        };
+
+        cleanupFunctions.push(() => {
+          delete window.callbackAppState;
+        });
+
+        // WebView 메시지 이벤트 리스너 추가
+        const handleMessage = (event: MessageEvent) => {
+          try {
+            const message: WebViewMessage =
+              typeof event.data === "string"
+                ? JSON.parse(event.data)
+                : event.data;
+            callback(message);
+            addStatusMessage(
+              `메시지 이벤트 수신됨:\n${JSON.stringify(message, null, 2)}`
+            );
+          } catch (error) {
+            console.error("Failed to parse message event:", error);
+            addStatusMessage(`메시지 이벤트 파싱 실패: ${error}`);
+          }
+        };
+
+        window.addEventListener("message", handleMessage);
+        cleanupFunctions.push(() => {
+          window.removeEventListener("message", handleMessage);
+        });
       }
-    };
-  }, []);
+
+      return () => {
+        cleanupFunctions.forEach((cleanup) => cleanup());
+      };
+    },
+    [addStatusMessage]
+  );
 
   return {
     isWebView,
@@ -151,5 +205,6 @@ export const useWebView = () => {
     setupMessageListener,
     statusMessages,
     addStatusMessage,
+    clearStatusMessages,
   };
 };
