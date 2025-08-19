@@ -2,5 +2,5 @@
 export interface WebViewMessage {
   type: string;
   data: any;
-  timestamp?: number;
+  timestamp?: string;
 }

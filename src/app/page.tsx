@@ -3,7 +3,7 @@
 import { useWebView } from "../hooks/use.webview";
 import { useNativeMessageHandler } from "../hooks/use.native.message.handler";
 import styles from "./page.module.css";
-import { TestItem } from "../models/test.item";
+import { EventItem, eventItems } from "../models/event.type";
 
 export default function Home() {
   const {
@@ -16,44 +16,30 @@ export default function Home() {
   const { receivedMessages, clearReceivedMessages } =
     useNativeMessageHandler(setupMessageListener);
 
-  const testItems: TestItem[] = [
-    // {
-    //   id: "push-token",
-    //   title: "앱 Push Token 요청",
-    //   description: "앱 Push Token 요청을 테스트합니다",
-    //   action: () => {
-    //     sendToNative("PUSH_TOKEN", {});
-    //   },
-    // },
-    {
-      id: "device-info",
-      title: "디바이스 정보 요청",
-      description: "앱의 기본 정보를 요청합니다",
-      action: () => {
-        sendToNative("DEVICE_INFO", {});
-      },
-    },
-    {
-      id: "camera-access",
-      title: "카메라 접근",
-      description: "카메라 접근 권한을 요청합니다",
-      action: () => {
-        sendToNative("CAMERA_ACCESS", {});
-      },
-    },
-    {
-      id: "photo-library-access",
-      title: "사진앨범 접근",
-      description: "사진앨범 접근 권한을 요청합니다",
-      action: () => {
-        sendToNative("PHOTO_LIBRARY_ACCESS", {});
-      },
-    },
-  ];
+  eventItems.forEach((item) => {
+    item.action = () => {
+      console.log(item.id);
+      if (item.id == "SET_CLIPBOARD") {
+        sendToNative(item.id, {
+          text: "Hello World",
+        });
+      } else {
+        sendToNative(item.id, {});
+      }
 
-  const handleTestClick = (item: TestItem) => {
+      // 화면을 맨 아래로 스크롤
+      window.scrollTo({
+        top: document.body.scrollHeight,
+        behavior: "smooth",
+      });
+    };
+  });
+
+  const handleTestClick = (item: EventItem) => {
     console.log(`Testing: ${item.title}`);
-    item.action();
+    if (item.action) {
+      item.action();
+    }
   };
 
   return (
@@ -67,7 +53,7 @@ export default function Home() {
         </div>
 
         <div className={styles.testList}>
-          {testItems.map((item) => (
+          {eventItems.map((item) => (
             <div
               key={item.id}
               className={styles.testItem}
@@ -105,7 +91,15 @@ export default function Home() {
                       </span>
                     </div>
                     <pre className={styles.messageData}>
-                      {JSON.stringify(msg, null, 2)}
+                      {JSON.stringify(
+                        Object.fromEntries(
+                          Object.entries(msg).filter(
+                            ([key]) => key !== "timestamp"
+                          )
+                        ),
+                        null,
+                        2
+                      )}
                     </pre>
                   </div>
                 ))}
@@ -131,7 +125,23 @@ export default function Home() {
                 .reverse()
                 .map((msg, index) => (
                   <div key={index} className={styles.message}>
-                    <div className={styles.messageContent}>{msg}</div>
+                    <div className={styles.messageHeader}>
+                      <span className={styles.messageType}>{msg.type}</span>
+                      <span className={styles.messageTime}>
+                        {new Date().toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <pre className={styles.messageData}>
+                      {JSON.stringify(
+                        Object.fromEntries(
+                          Object.entries(msg).filter(
+                            ([key]) => key !== "timestamp"
+                          )
+                        ),
+                        null,
+                        2
+                      )}
+                    </pre>
                   </div>
                 ))}
             </div>

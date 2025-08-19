@@ -39,12 +39,15 @@ declare global {
 
 export const useWebView = () => {
   const [isWebView, setIsWebView] = useState<boolean>(false);
-  const [statusMessages, setStatusMessages] = useState<string[]>([]);
+  const [statusMessages, setStatusMessages] = useState<WebViewMessage[]>([]);
 
-  const addStatusMessage = useCallback((message: string) => {
+  const addStatusMessage = useCallback((message: WebViewMessage) => {
     setStatusMessages((prev) => [
       ...prev.slice(-4), // 최근 5개만 유지
-      `${new Date().toLocaleTimeString()}: ${message}`,
+      {
+        ...message,
+        timestamp: new Date().toLocaleTimeString(),
+      },
     ]);
   }, []);
 
@@ -72,58 +75,30 @@ export const useWebView = () => {
 
   // 네이티브로 메시지 전송
   const sendToNative = useCallback((type: string, data: any = {}) => {
-    const message: WebViewMessage = { type, data, timestamp: Date.now() };
+    const message: WebViewMessage = { type, data };
 
     if (window.IN_APP_WEBVIEW_BRIDGE_CHANNEL?.postMessage) {
       // WebView 커스텀 채널
       window.IN_APP_WEBVIEW_BRIDGE_CHANNEL.postMessage(JSON.stringify(message));
-      addStatusMessage(
-        `메시지 전송됨 (IN_APP_WEBVIEW_BRIDGE_CHANNEL):\n${JSON.stringify(
-          message,
-          null,
-          2
-        )}`
-      );
+      addStatusMessage(message);
     } else if (window.webkit?.messageHandlers?.nativeHandler) {
       // iOS WKWebView
       window.webkit.messageHandlers.nativeHandler.postMessage(message);
-      addStatusMessage(
-        `메시지 전송됨 (iOS WKWebView):\n${JSON.stringify(message, null, 2)}`
-      );
+      addStatusMessage(message);
     } else if (window.Android?.receiveMessage) {
       // Android WebView
       window.Android.receiveMessage(JSON.stringify(message));
-      addStatusMessage(
-        `메시지 전송됨 (Android WebView):\n${JSON.stringify(message, null, 2)}`
-      );
+      addStatusMessage(message);
     } else if (window.flutter_inappwebview?.callHandler) {
       // Flutter InAppWebView
       window.flutter_inappwebview.callHandler("flutterHandler", message);
-      addStatusMessage(
-        `메시지 전송됨 (Flutter InAppWebView):\n${JSON.stringify(
-          message,
-          null,
-          2
-        )}`
-      );
+      addStatusMessage(message);
     } else if (window.ReactNativeWebView) {
       // React Native WebView
       window.ReactNativeWebView.postMessage(JSON.stringify(message));
-      addStatusMessage(
-        `메시지 전송됨 (React Native WebView):\n${JSON.stringify(
-          message,
-          null,
-          2
-        )}`
-      );
+      addStatusMessage(message);
     } else {
-      addStatusMessage(
-        `네이티브 브리지를 사용할 수 없습니다.\n\n전송하려던 메시지:\n${JSON.stringify(
-          message,
-          null,
-          2
-        )}`
-      );
+      addStatusMessage(message);
       console.log("Native bridge not available:", message);
     }
   }, []);
@@ -149,12 +124,13 @@ export const useWebView = () => {
         });
 
         // AppState 콜백 함수 설정
-        window.callbackAppState = (state: string) => {
+        window.callbackAppState = (data: string) => {
           try {
-            const message: WebViewMessage = {
-              type: "APP_STATE_CHANGE",
-              data: { state },
-            };
+            const message: WebViewMessage = JSON.parse(data);
+            // const message: WebViewMessage = {
+            //   type: "APP_STATE_CHANGE",
+            //   data: { state },
+            // };
             callback(message);
           } catch (error) {
             console.error("Failed to handle app state change:", error);
@@ -173,12 +149,13 @@ export const useWebView = () => {
                 ? JSON.parse(event.data)
                 : event.data;
             callback(message);
-            addStatusMessage(
-              `메시지 이벤트 수신됨:\n${JSON.stringify(message, null, 2)}`
-            );
+            addStatusMessage(message);
           } catch (error) {
             console.error("Failed to parse message event:", error);
-            addStatusMessage(`메시지 이벤트 파싱 실패: ${error}`);
+            addStatusMessage({
+              type: "ERROR",
+              data: { error: error },
+            });
           }
         };
 

@@ -14,6 +14,7 @@ export const useNativeMessageHandler = (
       ...prev,
       {
         ...message,
+        timestamp: new Date().toLocaleTimeString(),
       },
     ]);
 
@@ -54,6 +55,8 @@ export const useNativeMessageHandler = (
     const cleanup = setupMessageListener(handleNativeMessage);
     return cleanup;
   }, [setupMessageListener, handleNativeMessage]);
+
+  console.log(receivedMessages);
 
   return {
     receivedMessages,
