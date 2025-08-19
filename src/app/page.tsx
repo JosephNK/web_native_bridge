@@ -18,14 +18,7 @@ export default function Home() {
 
   eventItems.forEach((item) => {
     item.action = () => {
-      console.log(item.id);
-      if (item.id == "SET_CLIPBOARD") {
-        sendToNative(item.id, {
-          text: "Hello World",
-        });
-      } else {
-        sendToNative(item.id, {});
-      }
+      sendToNative(item.id, item.data);
 
       // 화면을 맨 아래로 스크롤
       window.scrollTo({
