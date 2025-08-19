@@ -127,10 +127,6 @@ export const useWebView = () => {
         window.callbackAppState = (data: string) => {
           try {
             const message: WebViewMessage = JSON.parse(data);
-            // const message: WebViewMessage = {
-            //   type: "APP_STATE_CHANGE",
-            //   data: { state },
-            // };
             callback(message);
           } catch (error) {
             console.error("Failed to handle app state change:", error);
