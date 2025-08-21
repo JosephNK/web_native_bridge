@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "local-origin.dev",
     "*.local-origin.dev",
-    "400e074cedc6.ngrok-free.app",
+    "4df51f27050c.ngrok-free.app",
   ],
 };
 
